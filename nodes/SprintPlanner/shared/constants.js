@@ -1,10 +1,10 @@
 // @ts-check
-/** Общие константы сервера — fork-agnostic. Per-fork значения живут в branding.js. */
+/** Common server constants — fork-agnostic. Per-fork values live in branding.js. */
 
 export const SERVER_NAME = 'sprint-planner-mcp';
-/** Минимальная версия плагина (= версия контракта), под которую собран сервер. */
+/** Minimum plugin version (= contract version) the server is built against. */
 export const CONTRACT_MIN = '3.51.0';
-/** Предел длины текстовой части ответа инструмента (символов). */
+/** Limit of the text part of a tool response (characters). */
 export const CHARACTER_LIMIT = 40000;
 
 export const ROLE_KEYS = /** @type {const} */ (['analysis', 'testing', 'devPlatform', 'devBack', 'devFront', 'devIos', 'devAndroid', 'devFs', 'devDb']);
@@ -20,11 +20,11 @@ export const RELEASE_KINDS = /** @type {const} */ (['release', 'hotfix']);
 export const RELEASE_SOURCES = /** @type {const} */ (['internal', 'vendor']);
 export const PHASE_KEYS = /** @type {const} */ (['analysis', 'development', 'techTest', 'regression', 'bizTest', 'deploy']);
 
-/** Пути контракта, к которым сервер вообще обращается (инвариант «исходящий HTTP только к контракту»). */
+/** Contract paths the server ever calls (invariant: outgoing HTTP only to the contract). */
 export const CONTRACT_PATHS = /** @type {const} */ ([
   'app-version', 'sprint-data', 'history', 'capacity', 'capacity-archive', 'calendar', 'absences',
   'releases', 'releases-archive', 'reminders', 'reminders-journal', 'sprint-lock', 'filter-planner-projects', 'my-roles'
 ]);
 
-/** Лимиты списков в ответах чтения (вместо усечения по символам — предсказуемо для агента). */
+/** List limits in read responses (predictable for the agent, instead of truncating by characters). */
 export const LIMITS = { itemsPerRole: 200, history: 20, releases: 100, journal: 50, capacityArchive: 20 };

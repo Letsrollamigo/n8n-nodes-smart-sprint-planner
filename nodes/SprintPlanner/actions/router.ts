@@ -34,7 +34,7 @@ export const RESOURCES: Record<keyof typeof T.resources, Resource> = {
 	issue,
 };
 
-/** Свойства формы: ресурс, затем операции и поля каждого ресурса. */
+/** Form properties: the resource, then operations and fields of each resource. */
 export function nodeProperties(): INodeProperties[] {
 	const names = Object.keys(RESOURCES) as Array<keyof typeof T.resources>;
 	return [
@@ -50,7 +50,7 @@ export function nodeProperties(): INodeProperties[] {
 	];
 }
 
-/** Элементы строго по очереди; ошибка элемента → NodeApiError/NodeOperationError либо элемент {ok:false} при Continue On Fail. */
+/** Items are processed strictly in order; an item error → NodeApiError/NodeOperationError, or an {ok:false} item under Continue On Fail. */
 export async function route(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 	const items = this.getInputData();
 	const run = new RunContext(this);
@@ -80,6 +80,7 @@ function projectKeyIfAny(fn: IExecuteFunctions, i: number): string | undefined {
 		const v = fn.getNodeParameter('project', i, '', { extractValue: true });
 		return typeof v === 'string' && v.trim() ? v.trim() : undefined;
 	} catch {
+		// getNodeParameter throws when this resource has no project selector — treat as absent.
 		return undefined;
 	}
 }

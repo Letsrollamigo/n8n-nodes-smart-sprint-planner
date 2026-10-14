@@ -8,7 +8,7 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v);
 const PAGE = 50;
 
-/** Ключ проекта из формы (для выражения — пусто: значение известно только при выполнении). */
+/** Project key from the form (empty for expressions: the value is only known at runtime). */
 export function currentProjectKey(fn: ILoadOptionsFunctions): string {
 	const v = fn.getCurrentNodeParameter('project', { extractValue: true });
 	const s = typeof v === 'string' ? v.trim() : '';
@@ -16,7 +16,7 @@ export function currentProjectKey(fn: ILoadOptionsFunctions): string {
 }
 
 export const listSearch = {
-	/** Проекты YouTrack с подключённым планером: страница admin/projects ∩ filter-planner-projects. */
+	/** YouTrack projects with the planner attached: admin/projects page ∩ filter-planner-projects. */
 	async searchProjects(this: ILoadOptionsFunctions, filter?: string, paginationToken?: string): Promise<INodeListSearchResult> {
 		const skip = Number(paginationToken) || 0;
 		const page = await ytGet(this, '/api/admin/projects', { fields: 'shortName,name,archived', query: filter ?? '', $skip: skip, $top: PAGE });
@@ -33,7 +33,7 @@ export const listSearch = {
 		};
 	},
 
-	/** Релизы выбранного проекта; проект задан выражением — подсказка выбрать его из списка. */
+	/** Releases of the selected project; when the project is an expression, hint the user to pick it from the list. */
 	async searchReleases(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
 		const key = currentProjectKey(this);
 		if (!key) return { results: [{ name: T.lists.selectProject, value: '' }] };

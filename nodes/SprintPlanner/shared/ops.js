@@ -1,5 +1,5 @@
 // @ts-check
-/** Операции контракта как функции + цикл ревизий. Ничего не знает об MCP. */
+/** Contract operations as functions + the revision loop. Knows nothing about MCP. */
 import { PlannerRefusal } from './errors.js';
 
 /** @typedef {{ call: (method: 'GET'|'POST', path: string, opts?: { projectKey?: string, query?: Record<string, unknown>, body?: unknown }) => Promise<Record<string, unknown>> }} Client */
@@ -33,18 +33,18 @@ export function makeOps(client) {
   };
 }
 
-/** Ревизия рабочего слота из ответа GET sprint-data: sprint:null → 0. @param {Record<string, unknown>} sd */
+/** Working-slot revision from the GET sprint-data response: sprint:null → 0. @param {Record<string, unknown>} sd */
 export function slotRev(sd) {
   const s = sd && sd.sprint;
   return s && typeof s === 'object' && typeof (/** @type {Record<string, unknown>} */ (s))._rev === 'number' ? /** @type {number} */ ((/** @type {Record<string, unknown>} */ (s))._rev) : 0;
 }
 
-/** Ревизия из ответа GET history/absences/releases. @param {Record<string, unknown>} body */
+/** Revision from the GET history/absences/releases response. @param {Record<string, unknown>} body */
 export function bodyRev(body) { return typeof body.rev === 'number' ? body.rev : 0; }
 
 /**
- * Цикл ревизий. baseRev передан агентом → один вызов, конфликт — наружу. Не передан → читаем ревизию,
- * зовём; при rev_conflict и retry — повтор ровно один раз с ревизией из отказа (или перечитанной).
+ * Revision loop. baseRev given by the agent → one call, conflicts surface. Not given → read the revision,
+ * call; on rev_conflict with retry — retry exactly once with the revision from the refusal (or a re-read one).
  * @template T
  * @param {{ baseRev?: number, readRev: () => Promise<number>, run: (rev: number) => Promise<T>, retry?: boolean }} o
  * @returns {Promise<{ result: T, retried: boolean }>}

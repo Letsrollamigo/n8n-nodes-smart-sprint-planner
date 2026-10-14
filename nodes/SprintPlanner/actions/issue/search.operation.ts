@@ -11,7 +11,7 @@ export const description: INodeProperties[] = forOp('issue', 'search', [
 	collection('options', [outputOption(), fld('project', { type: 'string', default: '' }, 'searchProject')]),
 ]);
 
-/** Значение поля задачи компактно: логин, имя значения, минуты, текст; множественное — массивом. */
+/** Compact issue field value: login, value name, minutes, text; multi-value → array. */
 export function fieldValue(v: unknown): unknown {
 	if (v === null || v === undefined) return null;
 	if (Array.isArray(v)) return v.map(fieldValue);

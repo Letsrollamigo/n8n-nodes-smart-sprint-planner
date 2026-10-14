@@ -1,5 +1,5 @@
-// Штатный REST YouTrack: поиск задач, «Записать поле» по фактическому $type поля задачи (пробы спеки §6),
-// запись через планер, методы списков формы.
+// Stock YouTrack REST: issue search, “Set field” by the issue field's actual $type (spec §6 probes),
+// write through the planner, form list methods.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ctx, dist, project, run } from './_mock.mjs';
@@ -12,7 +12,7 @@ const { fmt } = dist('transport/errors.js');
 const P = (operation, extra = {}) => ({ resource: 'issue', operation, project: project(), ...extra });
 const ISSUE = (fields) => ({ statusCode: 200, body: { idReadable: 'DEMO-5', customFields: fields } });
 
-test('поиск — ключ проекта в начале запроса, постранично до предела, Simplified значения полей', async () => {
+test('search — project key at the start of the query, paged to the limit, Simplified field values', async () => {
 	const issue = (n) => ({
 		id: '2-' + n,
 		idReadable: 'DEMO-' + n,
@@ -20,7 +20,7 @@ test('поиск — ключ проекта в начале запроса, п�
 		project: { shortName: 'DEMO', name: 'Demo' },
 		customFields: [
 			{ name: 'State', value: { name: 'Open' } },
-			{ name: 'Assignee', value: { login: 'ivanov', name: 'Иван', fullName: 'Иван' } },
+			{ name: 'Assignee', value: { login: 'ivanov', name: 'Ivan', fullName: 'Ivan' } },
 			{ name: 'Estimation', value: { minutes: 480, presentation: '1d' } },
 			{ name: 'Fix versions', value: [{ name: '1.0' }, { name: '1.1' }] },
 			{ name: 'Due', value: 1790000000000 },
@@ -36,16 +36,16 @@ test('поиск — ключ проекта в начале запроса, п�
 	assert.equal(json[0].project, 'DEMO');
 });
 
-test('записать поле — $type берётся у задачи (StateMachine), форма значения по $type', async () => {
-	const { json, calls } = await run(P('setField', { issueId: 'DEMO-5', field: '84-1|state[1]', value: 'В работе' }), {
+test('set field — $type comes from the issue (StateMachine), value shape by $type', async () => {
+	const { json, calls } = await run(P('setField', { issueId: 'DEMO-5', field: '84-1|state[1]', value: 'In progress' }), {
 		'GET /api/issues/DEMO-5': ISSUE([{ id: '84-1', name: 'State', $type: 'StateMachineIssueCustomField' }]),
-		'POST /api/issues/DEMO-5': ISSUE([{ id: '84-1', name: 'State', $type: 'StateMachineIssueCustomField', value: { name: 'В работе' } }]),
+		'POST /api/issues/DEMO-5': ISSUE([{ id: '84-1', name: 'State', $type: 'StateMachineIssueCustomField', value: { name: 'In progress' } }]),
 	});
-	assert.deepEqual(calls[1].body, { customFields: [{ id: '84-1', $type: 'StateMachineIssueCustomField', value: { name: 'В работе' } }] });
-	assert.deepEqual(json[0], { idReadable: 'DEMO-5', field: { id: '84-1', name: 'State', value: 'В работе' } });
+	assert.deepEqual(calls[1].body, { customFields: [{ id: '84-1', $type: 'StateMachineIssueCustomField', value: { name: 'In progress' } }] });
+	assert.deepEqual(json[0], { idReadable: 'DEMO-5', field: { id: '84-1', name: 'State', value: 'In progress' } });
 });
 
-test('записать поле — пользователь, период, текст, простые, дата (полдень UTC календарной даты), сброс', async () => {
+test('set field — user, period, text, simple, date (noon UTC of the calendar date), clear', async () => {
 	const { valueFor } = dist('actions/issue/setField.operation.js');
 	assert.deepEqual(valueFor('SingleUserIssueCustomField', 'user[1]', 'ivanov'), { login: 'ivanov' });
 	assert.deepEqual(valueFor('PeriodIssueCustomField', 'period', '480'), { minutes: 480 });
@@ -66,7 +66,7 @@ test('записать поле — пользователь, период, те
 	assert.equal(calls[1].body.customFields[0].value, null);
 });
 
-test('записать поле — многозначное и поле не из проекта задачи — отказ до записи', async () => {
+test('set field — multi-value and a field outside the issue project — refusal before writing', async () => {
 	const multi = await run(P('setField', { issueId: 'DEMO-5', field: '84-3|version[*]', value: '1.0' }), {}).catch((e) => e);
 	assert.ok(multi.message.startsWith(T.guards.multi_value_field.message.split('{')[0]));
 	const multiByType = await run(P('setField', { issueId: 'DEMO-5', field: '84-3|version[1]', value: '1.0' }), {
@@ -79,7 +79,7 @@ test('записать поле — многозначное и поле не и
 	assert.ok(badPick.message.includes(T.problems.fieldValue));
 });
 
-test('ошибка YouTrack — текст YouTrack в message', async () => {
+test('YouTrack error — YouTrack text in message', async () => {
 	const err = await run(P('setField', { issueId: 'DEMO-5', field: '84-1|enum[1]', value: 'Nope' }), {
 		'GET /api/issues/DEMO-5': ISSUE([{ id: '84-1', name: 'Priority', $type: 'SingleEnumIssueCustomField' }]),
 		'POST /api/issues/DEMO-5': { statusCode: 400, body: { error: 'bad_request', error_description: 'Value not found' } },
@@ -87,44 +87,44 @@ test('ошибка YouTrack — текст YouTrack в message', async () => {
 	assert.equal(err.message, 'Value not found');
 });
 
-test('через планер — update-issue-field с projectKey; период — целые минуты; сброс — null', async () => {
-	const { json, calls } = await run(P('setFieldViaPlanner', { issueId: 'DEMO-5', fieldName: 'Оценка', fieldType: 'period', value: '480' }), {
-		'POST update-issue-field': { issueId: 'DEMO-5', fieldName: 'Оценка' },
+test('through the planner — update-issue-field with projectKey; period — integer minutes; clear — null', async () => {
+	const { json, calls } = await run(P('setFieldViaPlanner', { issueId: 'DEMO-5', fieldName: 'Estimate', fieldType: 'period', value: '480' }), {
+		'POST update-issue-field': { issueId: 'DEMO-5', fieldName: 'Estimate' },
 	});
 	assert.equal(calls[0].qs.projectKey, 'DEMO');
-	assert.deepEqual(calls[0].body, { issueId: 'DEMO-5', fieldName: 'Оценка', type: 'period', value: 480 });
-	assert.deepEqual(json[0], { issueId: 'DEMO-5', fieldName: 'Оценка' });
-	const clr = await run(P('setFieldViaPlanner', { issueId: 'DEMO-5', fieldName: 'Аналитик', fieldType: 'user', clearField: true }), { 'POST update-issue-field': {} });
+	assert.deepEqual(calls[0].body, { issueId: 'DEMO-5', fieldName: 'Estimate', type: 'period', value: 480 });
+	assert.deepEqual(json[0], { issueId: 'DEMO-5', fieldName: 'Estimate' });
+	const clr = await run(P('setFieldViaPlanner', { issueId: 'DEMO-5', fieldName: 'Analyst', fieldType: 'user', clearField: true }), { 'POST update-issue-field': {} });
 	assert.equal(clr.calls[0].body.value, null);
 });
 
-test('метод searchProjects — только проекты с планером, без архивных, постранично', async () => {
-	const page = Array.from({ length: 50 }, (_, n) => ({ shortName: 'P' + n, name: 'Проект ' + n, archived: n === 2 }));
+test('searchProjects method — only projects with the planner, no archived ones, paged', async () => {
+	const page = Array.from({ length: 50 }, (_, n) => ({ shortName: 'P' + n, name: 'Project ' + n, archived: n === 2 }));
 	const c = ctx({
 		routes: {
 			'GET /api/admin/projects': { statusCode: 200, body: page },
 			'POST filter-planner-projects': (o) => ({ statusCode: 200, body: { success: true, projects: o.body.keys.filter((k) => ['P1', 'P2', 'P3'].includes(k)).map((key) => ({ key })) } }),
 		},
 	});
-	const r = await listSearch.searchProjects.call(c.fn, 'Про', '50');
+	const r = await listSearch.searchProjects.call(c.fn, 'Pro', '50');
 	assert.deepEqual(r.results, [
-		{ name: 'Проект 1 (P1)', value: 'P1' },
-		{ name: 'Проект 3 (P3)', value: 'P3' },
+		{ name: 'Project 1 (P1)', value: 'P1' },
+		{ name: 'Project 3 (P3)', value: 'P3' },
 	]);
 	assert.equal(r.paginationToken, '100');
 	assert.equal(c.calls[0].qs.$skip, 50);
-	assert.equal(c.calls[0].qs.query, 'Про');
+	assert.equal(c.calls[0].qs.query, 'Pro');
 });
 
-test('метод searchReleases — релизы проекта с фильтром; проект выражением — подсказка', async () => {
-	const c = ctx({ params: [{ project: project('DEMO') }], routes: { 'GET releases': { releases: [{ id: 'R1', name: 'Осень' }, { id: 'R2', name: 'Зима' }] } } });
-	assert.deepEqual((await listSearch.searchReleases.call(c.fn, 'зим')).results, [{ name: 'Зима (R2)', value: 'R2' }]);
+test('searchReleases method — project releases with a filter; expression project — a hint', async () => {
+	const c = ctx({ params: [{ project: project('DEMO') }], routes: { 'GET releases': { releases: [{ id: 'R1', name: 'Autumn' }, { id: 'R2', name: 'Winter' }] } } });
+	assert.deepEqual((await listSearch.searchReleases.call(c.fn, 'wint')).results, [{ name: 'Winter (R2)', value: 'R2' }]);
 	const e = ctx({ params: [{ project: { __rl: true, mode: 'key', value: '={{ $json.key }}' } }] });
 	assert.deepEqual((await listSearch.searchReleases.call(e.fn)).results, [{ name: T.lists.selectProject, value: '' }]);
 	assert.equal(e.calls.length, 0);
 });
 
-test('метод getProjectFields — значение <id>|<вид>, многозначные помечены, сортировка по имени', async () => {
+test('getProjectFields method — value <id>|<type>, multi-value marked, sorted by name', async () => {
 	const c = ctx({
 		params: [{ project: project('DEMO') }],
 		routes: {

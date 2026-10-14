@@ -6,7 +6,7 @@ import * as search from './search.operation';
 import * as setField from './setField.operation';
 import * as setFieldViaPlanner from './setFieldViaPlanner.operation';
 
-/** «Найти» и «Записать поле (штатно)» выключаются флагами сборки (branding.ts); через планер — всегда. */
+/** “Search” and “Set field (stock)” are toggled by build flags (branding.ts); writing through the planner is always on. */
 export const operations: Record<string, Operation> = {
 	...(BRAND.features.issueSearch ? { search } : {}),
 	...(BRAND.features.issueSetField ? { setField } : {}),

@@ -8,7 +8,7 @@ export type RevKind = 'slot' | 'abs' | 'rel';
 export type Obj = Record<string, unknown>;
 export type Written = { result: Obj; retried: boolean };
 
-/** Контекст одного запуска ноды: операции контракта и память ревизий «проект × реестр» между элементами. */
+/** Context of one node run: contract operations and the “project × registry” revision memory across items. */
 export class RunContext {
 	readonly call: Call;
 
@@ -21,7 +21,7 @@ export class RunContext {
 		this.ops = makeOps({ call: this.call });
 	}
 
-	/** Ревизия реестра: из памяти запуска, иначе (или при `fresh`) — чтением контракта. */
+	/** Registry revision: from the run memory, otherwise (or when `fresh`) by reading the contract. */
 	async readRev(kind: RevKind, key: string, fresh = false): Promise<number> {
 		const k = key + ':' + kind;
 		const known = this.revs.get(k);
@@ -34,7 +34,7 @@ export class RunContext {
 		return rev;
 	}
 
-	/** Ревизия после записи (или из отказа rev_conflict); неизвестна — забыть, следующий элемент перечитает. */
+	/** Revision after a write (or from a rev_conflict refusal); when unknown, forget it and the next item re-reads. */
 	remember(kind: RevKind, key: string, rev: unknown): void {
 		const k = key + ':' + kind;
 		if (typeof rev === 'number') this.revs.set(k, rev);
@@ -42,8 +42,8 @@ export class RunContext {
 	}
 
 	/**
-	 * Точечная запись с ревизией: `baseRev` из Options — один вызов без повтора; иначе ревизия из памяти
-	 * или чтения и ровно один повтор при rev_conflict (повторное чтение — мимо памяти).
+	 * Point write with a revision: `baseRev` from Options — one call, no retry; otherwise the revision comes from memory
+	 * or from a read, with exactly one retry on rev_conflict (the re-read bypasses memory).
 	 */
 	write(kind: RevKind, key: string, baseRev: number | undefined, run: (rev: number) => Promise<Obj>, retry = true): Promise<Written> {
 		let reads = 0;
@@ -61,7 +61,7 @@ export class RunContext {
 	}
 }
 
-/** Вывод точечной записи: ревизия, что применено, был ли повтор (и ревизия истории у назначения). */
+/** Output of a point write: revision, what was applied, whether it retried (and the history revision for assignment). */
 export function written(r: Written): Obj {
 	const out: Obj = { rev: r.result.rev ?? null, applied: r.result.applied ?? null, retried: r.retried };
 	if (r.result.historyRev !== undefined) out.historyRev = r.result.historyRev;

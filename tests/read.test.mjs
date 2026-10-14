@@ -1,4 +1,4 @@
-// Чтение планера: проекции Simplified/Raw, разбиение, лимиты, фильтры, перевод дат, порядок вызовов.
+// Planner reads: Simplified/Raw projections, splitting, limits, filters, date conversion, call order.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dist, pathOf, project, run } from './_mock.mjs';
@@ -9,7 +9,7 @@ const { BRAND } = dist('branding.js');
 const SD = {
 	configured: true,
 	settings: { activeRoles: ['analysis', 'testing'] },
-	sprint: { sprintId: 's-11', name: 'Спринт 11', status: 'PLANNING', _rev: 7, resourceAnalysis: 4800 },
+	sprint: { sprintId: 's-11', name: 'Sprint 11', status: 'PLANNING', _rev: 7, resourceAnalysis: 4800 },
 	roleItems: {
 		analysis: [
 			{ issueId: 'DEMO-1', title: 'A', inclusionStatus: 'INC_PLANNED', estimate_analysis: 480 },
@@ -20,7 +20,7 @@ const SD = {
 };
 const P = (resource, operation, extra = {}) => ({ resource, operation, project: project(), ...extra });
 
-test('обзор — четыре вызова строго по очереди, минимум планера 3.49.1', async () => {
+test('overview — four calls strictly in order, planner minimum 3.49.1', async () => {
 	const { json, calls } = await run(P('project', 'getOverview'), {
 		'GET app-version': { version: '3.49.1' },
 		'GET sprint-data': SD,
@@ -38,7 +38,7 @@ test('обзор — четыре вызова строго по очереди,
 	assert.deepEqual(o.activeRoles, ['analysis', 'testing']);
 });
 
-test('спринт — Simplified по ролям, фильтр исключённых, Raw без success, разбиение на элементы', async () => {
+test('sprint — Simplified by roles, excluded filter, Raw without success, split into items', async () => {
 	const routes = { 'GET sprint-data': SD };
 	const [s] = (await run(P('sprint', 'get', { options: { includeExcluded: false } }), routes)).json;
 	assert.equal(s.items.analysis.total, 1);
@@ -54,7 +54,7 @@ test('спринт — Simplified по ролям, фильтр исключён
 	);
 });
 
-test('история — фильтры, лимит по умолчанию 20, Вернуть все', async () => {
+test('history — filters, default limit 20, Return All', async () => {
 	const history = Array.from({ length: 25 }, (_, n) => ({ sprintId: 's-' + n, roleKey: n % 2 ? 'analysis' : 'testing', status: 'CONFIRMED', items: [] }));
 	const routes = { 'GET history': { rev: 3, history } };
 	assert.equal((await run(P('history', 'getMany'), routes)).json.length, 20);
@@ -65,7 +65,7 @@ test('история — фильтры, лимит по умолчанию 20, 
 	assert.equal((await run(P('history', 'getMany', { limit: 3 }), routes)).json.length, 3);
 });
 
-test('ёмкость — без ID спринта берётся спринт слота; архив по параметру', async () => {
+test('capacity — without a sprint id the slot sprint is used; archive on demand', async () => {
 	const { json, calls } = await run(P('capacity', 'get', { options: { includeArchive: true } }), {
 		'GET sprint-data': SD,
 		'GET capacity': { capacity: { sprintId: 's-11', status: 'draft', persons: { ivanov: { rate: 1 } } }, archivedCount: 2 },
@@ -77,14 +77,14 @@ test('ёмкость — без ID спринта берётся спринт с
 	assert.equal(json[0].archive.length, 1);
 });
 
-test('календарь — один год', async () => {
+test('calendar — one year', async () => {
 	const routes = { 'GET calendar': { calendar: { years: { 2025: { d: 1 }, 2026: { d: 2 } }, uploadedBy: 'admin' } } };
 	const [c] = (await run(P('calendar', 'get', { options: { year: 2026 } }), routes)).json;
 	assert.deepEqual(c.years, { 2026: { d: 2 } });
 	assert.equal(c.uploadedBy, 'admin');
 });
 
-test('отсутствия — элемент на запись; период — календарные даты без сдвига зоны (+03:00)', async () => {
+test('absences — one item per record; period — calendar dates without zone shift (+03:00)', async () => {
 	const routes = {
 		'GET absences': {
 			rev: 5,
@@ -104,7 +104,7 @@ test('отсутствия — элемент на запись; период �
 	assert.equal(oct1.find((x) => x.login === 'petrov').hoursDelta, 4);
 });
 
-test('релизы — фильтр статуса, архив с отметкой, лимит', async () => {
+test('releases — status filter, archive with the flag, limit', async () => {
 	const routes = {
 		'GET releases': { rev: 9, perms: { write: true }, releases: [{ id: 'r1', status: 'prep' }, { id: 'r2', status: 'planned' }] },
 		'GET releases-archive': { releases: [{ id: 'r0', status: 'prep' }] },
@@ -116,22 +116,22 @@ test('релизы — фильтр статуса, архив с отметко
 	assert.deepEqual(raw.perms, { write: true });
 });
 
-test('напоминания — элементы напоминаний и журнала', async () => {
+test('reminders — reminder and journal items', async () => {
 	const routes = { 'GET reminders': { enabled: true, items: [{ id: 'a' }] }, 'GET reminders-journal': { journal: [{ id: 'j1' }, { id: 'j2' }] } };
 	const list = (await run(P('reminder', 'getMany', { options: { includeJournal: true } }), routes)).json;
 	assert.deepEqual(list.map((x) => x.kind), ['reminder', 'journal', 'journal']);
 });
 
-test('мои роли — все девять ключей и список имеющихся', async () => {
+test('my roles — all nine keys and the list of held ones', async () => {
 	const routes = { 'GET my-roles': { configured: true, disabled: false, instanceAdmin: false, roles: { editor: true, releaseManager: true } } };
 	const [r] = (await run(P('access', 'getMyRoles'), routes)).json;
 	assert.equal(Object.keys(r.roles).length, 9);
 	assert.deepEqual(r.list, ['editor', 'releaseManager']);
 });
 
-test('проекты — постранично, пересечение с filter-planner-projects, архивные скрыты, Только с планером', async () => {
-	const page1 = Array.from({ length: 100 }, (_, n) => ({ id: '0-' + n, shortName: 'P' + n, name: 'Проект ' + n, archived: n === 1 }));
-	const page2 = [{ id: '0-100', shortName: 'P100', name: 'Проект 100', archived: false }];
+test('projects — paged, intersected with filter-planner-projects, archived hidden, Only with planner', async () => {
+	const page1 = Array.from({ length: 100 }, (_, n) => ({ id: '0-' + n, shortName: 'P' + n, name: 'Project ' + n, archived: n === 1 }));
+	const page2 = [{ id: '0-100', shortName: 'P100', name: 'Project 100', archived: false }];
 	const routes = {
 		'GET /api/admin/projects': (o) => ({ statusCode: 200, body: o.qs.$skip === 0 ? page1 : page2 }),
 		'POST filter-planner-projects': (o) => ({ statusCode: 200, body: { success: true, projects: o.body.keys.filter((k) => k === 'P0' || k === 'P100').map((k) => ({ key: k, name: k, hasMirror: false })) } }),
@@ -146,7 +146,7 @@ test('проекты — постранично, пересечение с filte
 	assert.equal(all[1].planner, false);
 });
 
-test('статус планера — не подключён: без лишних вызовов; подключён: настроен и версия', async () => {
+test('planner status — not attached: no extra calls; attached: configured and version', async () => {
 	const off = await run(P('project', 'getPlannerStatus'), { 'POST filter-planner-projects': { projects: [] } });
 	assert.deepEqual(off.json[0], { key: 'DEMO', attached: false, hasMirror: null, disabled: null, configured: null, version: null });
 	assert.equal(off.calls.length, 1);

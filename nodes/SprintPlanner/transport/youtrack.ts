@@ -2,7 +2,7 @@ import type { IDataObject } from 'n8n-workflow';
 import { YouTrackError } from './errors';
 import { bodyText, credentialsOf, send, type Ctx } from './planner';
 
-/** Штатный REST YouTrack — только эти пути (инвариант «сеть только к известным адресам»). */
+/** Stock YouTrack REST — only these paths (invariant: network only to known addresses). */
 const YT_PATHS = [
 	/^\/api\/admin\/projects$/,
 	/^\/api\/admin\/projects\/[^/]+\/customFields$/,
@@ -28,7 +28,7 @@ async function ytRequest(ctx: Ctx, method: 'GET' | 'POST', path: string, qs: IDa
 export const ytGet = (ctx: Ctx, path: string, qs: IDataObject = {}) => ytRequest(ctx, 'GET', path, qs);
 export const ytPost = (ctx: Ctx, path: string, qs: IDataObject, body: IDataObject) => ytRequest(ctx, 'POST', path, qs, body);
 
-/** Постраничное чтение списка штатного REST ($skip/$top), до `max` элементов. */
+/** Paged reading of a stock REST list ($skip/$top), up to `max` items. */
 export async function ytList(ctx: Ctx, path: string, qs: IDataObject, max: number, pageSize = 100): Promise<IDataObject[]> {
 	const out: IDataObject[] = [];
 	for (let skip = 0; out.length < max; skip += pageSize) {

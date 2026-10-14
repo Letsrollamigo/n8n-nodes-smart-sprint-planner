@@ -13,17 +13,17 @@ export type Ctx = IExecuteFunctions | ILoadOptionsFunctions;
 export type CallOpts = { projectKey?: string; query?: Record<string, unknown>; body?: unknown };
 export type Call = (method: 'GET' | 'POST', path: string, opts?: CallOpts) => Promise<Record<string, unknown>>;
 
-/** Пути, к которым ходит нода: контракт общего слоя + запись поля задачи через планер (есть только у ноды). */
+/** Paths the node calls: the shared-layer contract plus issue field write through the planner (node-only). */
 const PATHS: readonly string[] = [...CONTRACT_PATHS, 'update-issue-field'];
 export const TIMEOUT_MS = 30000;
 
-/** Адрес YouTrack и идентификатор приложения из учётных данных. */
+/** YouTrack URL and application id from the credentials. */
 export async function credentialsOf(ctx: Ctx): Promise<{ url: string; appId: string }> {
 	const c = await ctx.getCredentials(BRAND.credentialName);
 	return { url: String(c.url ?? '').replace(/\/+$/, ''), appId: String(c.appId || BRAND.appId) };
 }
 
-/** Сбой запроса (сеть, DNS, таймаут axios) → NetworkError общего слоя с признаком таймаута. */
+/** Request failure (network, DNS, axios timeout) → shared-layer NetworkError with the timeout flag. */
 export function networkError(cause: unknown, baseUrl: string): NetworkError {
 	const ne = new NetworkError(cause, baseUrl);
 	const c = cause as { code?: unknown; cause?: { code?: unknown }; message?: unknown } | null;
@@ -32,12 +32,12 @@ export function networkError(cause: unknown, baseUrl: string): NetworkError {
 	return ne;
 }
 
-/** Текст тела ответа для диагностики (не больше 300 символов). */
+/** Response body text for diagnostics (at most 300 characters). */
 export function bodyText(body: unknown): string {
 	return (typeof body === 'string' ? body : JSON.stringify(body ?? '')).slice(0, 300);
 }
 
-/** Запрос с учётными данными ноды; сетевой сбой — NetworkError, HTTP-статус не бросается. */
+/** Request with the node credentials; network failure → NetworkError, HTTP status is not thrown. */
 export async function send(ctx: Ctx, baseUrl: string, options: IHttpRequestOptions): Promise<IN8nHttpFullResponse> {
 	try {
 		return (await ctx.helpers.httpRequestWithAuthentication.call(ctx, BRAND.credentialName, {
@@ -52,7 +52,7 @@ export async function send(ctx: Ctx, baseUrl: string, options: IHttpRequestOptio
 	}
 }
 
-/** `call()` контракта планера (интерфейс Client общего слоя): конверт → PlatformError / PlannerRefusal. */
+/** `call()` of the planner contract (shared-layer Client interface): envelope → PlatformError / PlannerRefusal. */
 export function makePlannerCall(ctx: Ctx): Call {
 	let creds: Promise<{ url: string; appId: string }> | undefined;
 	return async (method, path, opts = {}) => {

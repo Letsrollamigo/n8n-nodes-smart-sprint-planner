@@ -7,7 +7,7 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export const loadOptions = {
-	/** Поля проекта для «Записать поле»: значение `<id>|<fieldType.id>`; многозначные — с пометкой (v1 их не пишет). */
+	/** Project fields for “Set field”: value `<id>|<fieldType.id>`; multi-value fields are marked (v1 does not write them). */
 	async getProjectFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 		const key = currentProjectKey(this);
 		if (!key) return [];

@@ -21,9 +21,9 @@ export const description: INodeProperties[] = forOp('issue', 'setField', [
 ]);
 
 /**
- * Значение по фактическому `$type` поля задачи (пробы 2026-09-25, спека §6): набор → {name}, пользователь → {login},
- * период → {minutes}, текст → {text}, дата → epoch-ms (вид date — полдень UTC календарной даты: так YouTrack хранит её сам,
- * и дата не сдвигается ни в одном часовом поясе сервера), простое — число или строка.
+ * Value shaped by the issue field's actual `$type` (probes of 2026-09-25, spec §6): set → {name}, user → {login},
+ * period → {minutes}, text → {text}, date → epoch-ms (date kind — noon UTC of the calendar date: that is how YouTrack
+ * stores it itself, so the date does not shift in any server time zone), simple → number or string.
  */
 export function valueFor($type: string, fieldType: string, v: unknown): unknown {
 	const label = T.fields.value.displayName;

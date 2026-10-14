@@ -1,7 +1,7 @@
 import type { IDataObject, INodeProperties } from 'n8n-workflow';
 import { fld, epochOf, minutesField, minutesOf, roleMapField, roleMapOf, text, type Obj } from '../fields';
 
-/** Необязательные поля шапки спринта (общие для черновика и изменения шапки). */
+/** Optional sprint header fields (shared by draft upload and header update). */
 export const optionalHeaderFields = (): INodeProperties[] => [
 	fld('sprintGoal', { type: 'string', default: '' }),
 	fld('sprintFieldVal', { type: 'string', default: '' }),
@@ -9,7 +9,7 @@ export const optionalHeaderFields = (): INodeProperties[] => [
 	roleMapField('resources', minutesField('minutes', 'resourceMinutes')),
 ];
 
-/** Шапка спринта из параметров: только заполненные поля, с проверкой длины, дат и минут. */
+/** Sprint header from parameters: only filled fields, with length, date and minutes checks. */
 export function readHeader(o: IDataObject): Obj {
 	const out: Obj = {};
 	const put = (k: string, v: unknown) => {

@@ -1,5 +1,5 @@
 // @ts-check
-/** Чистые проекции: компактные ответы, свёртка ключей ролей, фильтры. Без сети и без MCP. */
+/** Pure projections: compact responses, role-key folding, filters. No network, no MCP. */
 import { ROLE_KEYS, LIMITS } from './constants.js';
 
 /** @typedef {Record<string, unknown>} Obj */
@@ -10,7 +10,7 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 /** @param {Obj} o @param {string} k */
 const val = (o, k) => (o[k] === undefined ? null : o[k]);
 
-/** `resource<Роль>` контракта для ключа роли: analysis → resourceAnalysis. @param {string} roleKey */
+/** Contract's `resource<Role>` for a role key: analysis → resourceAnalysis. @param {string} roleKey */
 export const resourceKey = (roleKey) => 'resource' + cap(roleKey);
 
 /** @param {Obj} sprint @returns {Record<string, number>} */
@@ -21,7 +21,7 @@ export function resourcesOf(sprint) {
   return out;
 }
 
-/** Шапка спринта для агента. @param {unknown} sprint */
+/** Sprint header for the agent. @param {unknown} sprint */
 export function sprintHeader(sprint) {
   if (!isObj(sprint)) return null;
   return {
@@ -33,7 +33,7 @@ export function sprintHeader(sprint) {
   };
 }
 
-/** Тело спринта из входа инструмента: resources → resource<Роль>. @param {Obj} input */
+/** Sprint body from tool input: resources → resource<Role>. @param {Obj} input */
 export function sprintBodyFromInput(input) {
   const { resources, ...rest } = input;
   /** @type {Obj} */
@@ -42,7 +42,7 @@ export function sprintBodyFromInput(input) {
   return out;
 }
 
-/** Задача роли для агента: estimate_<role> → estimate и т. д. @param {Obj} item @param {string} roleKey */
+/** Role item for the agent: estimate_<role> → estimate etc. @param {Obj} item @param {string} roleKey */
 export function itemView(item, roleKey) {
   /** @param {string} fam */
   const num = (fam) => { const v = item[fam + '_' + roleKey]; return typeof v === 'number' ? v : null; };
@@ -54,7 +54,7 @@ export function itemView(item, roleKey) {
   };
 }
 
-/** Тело задачи из входа инструмента. @param {Obj} input @param {string} roleKey */
+/** Item body from tool input. @param {Obj} input @param {string} roleKey */
 export function itemBodyFromInput(input, roleKey) {
   const { estimate, fact, alloc, ...rest } = input;
   /** @type {Obj} */
@@ -65,7 +65,7 @@ export function itemBodyFromInput(input, roleKey) {
   return out;
 }
 
-/** Состав по ролям, компактно, с лимитом на роль. @param {unknown} roleItems @param {{ roleKey?: string, includeExcluded?: boolean, limit?: number }} o */
+/** Roster by role, compact, with a per-role limit. @param {unknown} roleItems @param {{ roleKey?: string, includeExcluded?: boolean, limit?: number }} o */
 export function itemsByRole(roleItems, { roleKey, includeExcluded = true, limit = LIMITS.itemsPerRole } = {}) {
   /** @type {Record<string, { total: number, count: number, hasMore: boolean, items: ReturnType<typeof itemView>[] }>} */
   const out = {};
@@ -81,7 +81,7 @@ export function itemsByRole(roleItems, { roleKey, includeExcluded = true, limit 
   return out;
 }
 
-/** Число задач по ролям (для обзора). @param {unknown} roleItems */
+/** Item counts by role (for the overview). @param {unknown} roleItems */
 export function itemCounts(roleItems) {
   /** @type {Record<string, number>} */
   const out = {};
@@ -90,7 +90,7 @@ export function itemCounts(roleItems) {
   return out;
 }
 
-/** Запись истории для агента. @param {Obj} rec @param {boolean} includeItems @param {Record<string,string>} roleLabels */
+/** History record for the agent. @param {Obj} rec @param {boolean} includeItems @param {Record<string,string>} roleLabels */
 export function historyView(rec, includeItems, roleLabels) {
   const roleKey = typeof rec.roleKey === 'string' ? rec.roleKey : null;
   const items = Array.isArray(rec.items) ? rec.items : [];
@@ -106,14 +106,14 @@ export function historyView(rec, includeItems, roleLabels) {
   return out;
 }
 
-/** Фильтр записей истории. @param {unknown[]} history @param {{ sprintId?: string, roleKey?: string, status?: string }} f */
+/** History records filter. @param {unknown[]} history @param {{ sprintId?: string, roleKey?: string, status?: string }} f */
 export function filterHistory(history, { sprintId, roleKey, status }) {
   return history.filter(isObj).filter((r) =>
     (!sprintId || r.sprintId === sprintId || (typeof r.sprintId === 'string' && r.sprintId.startsWith(sprintId + '_'))) &&
     (!roleKey || r.roleKey === roleKey) && (!status || r.status === status));
 }
 
-/** Запись ёмкости для агента. @param {unknown} rec */
+/** Capacity record for the agent. @param {unknown} rec */
 export function capacityView(rec) {
   if (!isObj(rec)) return null;
   const persons = isObj(rec.persons) ? rec.persons : {};
@@ -126,7 +126,7 @@ export function capacityView(rec) {
   return { sprintId: val(rec, 'sprintId'), mode: val(rec, 'mode'), status: val(rec, 'status'), dirty: val(rec, 'dirty'), approvedBy: val(rec, 'approvedBy'), approvedAt: val(rec, 'approvedAt'), dateEnd: val(rec, 'dateEnd'), persons: p };
 }
 
-/** Релиз для агента. @param {Obj} r */
+/** Release for the agent. @param {Obj} r */
 export function releaseView(r) {
   return {
     id: val(r, 'id'), name: val(r, 'name'), kind: val(r, 'kind'), source: val(r, 'source'), status: val(r, 'status'),
@@ -136,7 +136,7 @@ export function releaseView(r) {
   };
 }
 
-/** Отсутствия с фильтром по логину и пересечению периода (даты YYYY-MM-DD сравниваются как строки). @param {unknown} absences @param {{ login?: string, from?: string, to?: string }} f */
+/** Absences filtered by login and period overlap (YYYY-MM-DD dates compared as strings). @param {unknown} absences @param {{ login?: string, from?: string, to?: string }} f */
 export function filterAbsences(absences, { login, from, to }) {
   /** @type {Record<string, Obj[]>} */
   const out = {};
@@ -150,7 +150,7 @@ export function filterAbsences(absences, { login, from, to }) {
   return out;
 }
 
-/** a ≥ b для X.Y.Z. @param {string} a @param {string} b */
+/** a ≥ b for X.Y.Z. @param {string} a @param {string} b */
 export function semverGte(a, b) {
   const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
   for (let i = 0; i < 3; i++) { const x = pa[i] || 0, y = pb[i] || 0; if (x !== y) return x > y; }

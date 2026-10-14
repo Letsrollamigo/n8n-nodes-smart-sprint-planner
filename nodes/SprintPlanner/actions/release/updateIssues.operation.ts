@@ -26,7 +26,7 @@ export const description: INodeProperties[] = forOp('release', 'updateIssues', [
 
 const listOf = (applied: unknown, k: string): string[] => (isObj(applied) && Array.isArray(applied[k]) ? (applied[k] as string[]) : []);
 
-/** Добавление и удаление — две точечные записи по цепочке ревизий; повтор при конфликте — только у первой. */
+/** Add and remove are two point writes along the revision chain; only the first retries on conflict. */
 export async function execute(this: IExecuteFunctions, i: number, run: RunContext): Promise<Obj[]> {
 	const key = projectKeyOf(this, i);
 	const id = releaseIdOf(this, i);

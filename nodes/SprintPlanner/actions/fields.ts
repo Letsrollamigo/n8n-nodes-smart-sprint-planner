@@ -7,9 +7,9 @@ import { GuardError, fmt } from '../transport/errors';
 export type FieldName = keyof typeof T.fields;
 export type Obj = Record<string, unknown>;
 
-/* ───────────── Описание формы ───────────── */
+/* ───────────── Form description ───────────── */
 
-/** Свойство формы: подпись, описание и placeholder — из словаря по имени текста (`text`, по умолчанию = name). */
+/** Form property: label, description and placeholder come from the dictionary by text name (`text`, defaults to name). */
 export function fld(name: string, p: Omit<INodeProperties, 'displayName' | 'name'>, text: FieldName = name as FieldName): INodeProperties {
 	const t = T.fields[text] as { displayName: string; description?: string; placeholder?: string };
 	const out: INodeProperties = { displayName: t.displayName, name, ...p };
@@ -18,7 +18,7 @@ export function fld(name: string, p: Omit<INodeProperties, 'displayName' | 'name
 	return out;
 }
 
-/** Показывать свойства только для ресурса и операции. */
+/** Show properties only for the given resource and operation. */
 export function forOp(resource: string, operation: string, props: INodeProperties[]): INodeProperties[] {
 	return props.map((p) => ({
 		...p,
@@ -26,7 +26,7 @@ export function forOp(resource: string, operation: string, props: INodePropertie
 	}));
 }
 
-/** Свойство «Операция» ресурса: подписи, action и описания — из словаря. */
+/** The resource “Operation” property: labels, action and descriptions come from the dictionary. */
 export function operationField(resource: keyof typeof T.ops, names: string[]): INodeProperties {
 	const texts = T.ops[resource] as Record<string, { name: string; action: string; description: string }>;
 	const first = names[0];
@@ -41,7 +41,7 @@ export function operationField(resource: keyof typeof T.ops, names: string[]): I
 	};
 }
 
-/** Варианты из перечисления с подписями словаря. */
+/** Options from an enum with dictionary labels. */
 export function choices(values: readonly string[], labels: Record<string, string>): INodePropertyOptions[] {
 	return values.map((v) => ({ name: labels[v] ?? v, value: v }));
 }
@@ -90,14 +90,14 @@ export const outputOption = (): INodeProperties =>
 export const minutesField = (name: string, text: FieldName = name as FieldName): INodeProperties =>
 	fld(name, { type: 'number', default: 0, typeOptions: { minValue: 0, maxValue: 100000000 } }, text);
 
-/** Коллекция «Параметры» / «Дополнительные поля» / «Изменяемые поля». */
+/** The “Options” / “Additional Fields” / “Update Fields” collection. */
 export function collection(name: 'options' | 'additionalFields' | 'updateFields', options: INodeProperties[]): INodeProperties {
 	const label = name === 'options' ? T.collections.options : name === 'additionalFields' ? T.collections.additional : T.collections.update;
 	const placeholder = name === 'options' ? T.collections.optionsPlaceholder : T.collections.additionalPlaceholder;
 	return { displayName: label, name, type: 'collection', placeholder, default: {}, options };
 }
 
-/** Набор «роль → значение» (ресурсы, распределение, представители). */
+/** The “role → value” set (resources, allocation, representatives). */
 export function roleMapField(name: string, valueField: INodeProperties): INodeProperties {
 	const t = T.fields[name as FieldName] as { displayName: string; description?: string };
 	return {
@@ -116,7 +116,7 @@ export const returnAllLimit = (defaultLimit: number, max: number): INodeProperti
 	fld('limit', { type: 'number', default: defaultLimit, typeOptions: { minValue: 1, maxValue: max }, displayOptions: { show: { returnAll: [false] } } }),
 ];
 
-/* ───────────── Чтение параметров ───────────── */
+/* ───────────── Parameter parsing ───────────── */
 
 const bad = (field: string, problem: string): GuardError => new GuardError('invalid_field', { field, problem });
 const label = (text: FieldName) => (T.fields[text] as { displayName: string }).displayName;
@@ -132,7 +132,7 @@ export function releaseIdOf(fn: IExecuteFunctions, i: number): string {
 	return text(String(fn.getNodeParameter('release', i, '', { extractValue: true }) ?? ''), 'release', 64, true) as string;
 }
 
-/** Строка: обрезка пробелов, обязательность, длина. Пусто и не обязательна → undefined. */
+/** String: trimmed, required check, length. Empty and optional → undefined. */
 export function text(v: unknown, field: FieldName, max: number, required = false): string | undefined {
 	const s = v === undefined || v === null ? '' : String(v).trim();
 	if (!s) {
@@ -165,7 +165,7 @@ export const minutesOf = (v: unknown, field: FieldName): number => intIn(v, fiel
 
 const isEmpty = (v: unknown) => v === undefined || v === null || v === '';
 
-/** Момент времени (даты спринта, релизов, работы) → epoch-ms. Пусто → undefined. */
+/** Point in time (sprint, release, work dates) → epoch-ms. Empty → undefined. */
 export function epochOf(v: unknown, field: FieldName): number | undefined {
 	if (isEmpty(v)) return undefined;
 	if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -175,8 +175,8 @@ export function epochOf(v: unknown, field: FieldName): number | undefined {
 }
 
 /**
- * Календарная дата (отсутствия, поля задачи вида date) → YYYY-MM-DD из первых 10 символов значения, без перевода
- * в UTC: значение n8n несёт смещение зоны инстанса, и перевод сдвинул бы дату на день. Пусто → undefined.
+ * Calendar date (absences, date-typed issue fields) → YYYY-MM-DD from the first 10 characters, without converting
+ * to UTC: the n8n value carries the instance zone offset, and conversion would shift the date by a day. Empty → undefined.
  */
 export function isoDateOf(v: unknown, field: FieldName): string | undefined {
 	if (isEmpty(v)) return undefined;
@@ -201,7 +201,7 @@ export function jsonOf(v: unknown, field: FieldName): unknown {
 	}
 }
 
-/** Список ID: строка через запятую или массив из выражения. */
+/** List of ids: comma-separated string or an array from an expression. */
 export function idListOf(v: unknown, field: FieldName): string[] {
 	const list = Array.isArray(v) ? v.map(String) : String(v ?? '').split(',');
 	const out = list.map((s) => s.trim()).filter(Boolean);
@@ -210,7 +210,7 @@ export function idListOf(v: unknown, field: FieldName): string[] {
 	return out;
 }
 
-/** Значения набора «роль → значение» из fixedCollection. */
+/** Values of the “role → value” set from a fixedCollection. */
 export function roleMapOf(v: unknown, valueKey: string): Record<string, unknown> {
 	const entries = ((v as IDataObject | undefined)?.entries ?? []) as IDataObject[];
 	const out: Record<string, unknown> = {};
@@ -220,14 +220,14 @@ export function roleMapOf(v: unknown, valueKey: string): Record<string, unknown>
 
 export const optionsOf = (fn: IExecuteFunctions, i: number, name = 'options'): IDataObject => (fn.getNodeParameter(name, i, {}) as IDataObject) ?? {};
 
-/** Ревизия из «Параметров»: пусто или не число → undefined (нода читает сама). */
+/** Revision from “Options”: empty or not a number → undefined (the node reads it itself). */
 export function revisionOf(o: IDataObject): number | undefined {
 	const v = o.revision;
 	if (isEmpty(v)) return undefined;
 	return intIn(v, 'revision', 0, Number.MAX_SAFE_INTEGER);
 }
 
-/** Тело ответа планера без `success` — вывод «Полный». */
+/** Planner response body without `success` — the “Raw” output. */
 export function raw(body: Obj): Obj {
 	const out = { ...body };
 	delete out.success;

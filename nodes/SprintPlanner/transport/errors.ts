@@ -6,13 +6,13 @@ import { BRAND } from '../branding';
 
 export { GuardError };
 
-/** Минимальная версия планера для ноды; отдельным операциям — REQUIRES. */
+/** Minimum planner version for the node; per-operation requirements live in REQUIRES. */
 export const PLANNER_MIN = '3.49.1';
 
-/** Операции, которым нужна версия планера новее общей (3.49.1). Ключ — `<ресурс>.<операция>`. */
+/** Operations that need a planner newer than the common minimum (3.49.1). Key — `<resource>.<operation>`. */
 export const REQUIRES: Record<string, string> = { 'access.getMyRoles': '3.51.0', 'release.delete': '3.51.0' };
 
-/** Ошибка штатного REST YouTrack (не контракта планера). */
+/** Stock YouTrack REST error (outside the planner contract). */
 export class YouTrackError extends Error {
 	kind = 'youtrack' as const;
 	constructor(
@@ -25,7 +25,7 @@ export class YouTrackError extends Error {
 	}
 }
 
-/** Подстановка `{ключ}` в шаблон словаря. */
+/** Substitute `{key}` in a dictionary template. */
 export function fmt(tpl: string, params: Record<string, unknown> = {}): string {
 	return tpl.replace(/\{(\w+)\}/g, (m, k: string) => (params[k] === undefined ? m : String(params[k])));
 }
@@ -131,7 +131,7 @@ function requiresError(version: string): Explained {
 	};
 }
 
-/** Ошибка для броска из ноды: NodeApiError (ответ сервиса) или NodeOperationError (защиты ноды). */
+/** Error to throw from the node: NodeApiError (service response) or NodeOperationError (node guards). */
 export function toNodeError(node: INode, err: unknown, scope: ErrorScope): NodeApiError | NodeOperationError {
 	if (err instanceof NodeApiError || err instanceof NodeOperationError) return err;
 	const e = explain(err, scope);
@@ -142,7 +142,7 @@ export function toNodeError(node: INode, err: unknown, scope: ErrorScope): NodeA
 	return new NodeApiError(node, response, { ...opts, httpCode: e.httpCode });
 }
 
-/** Элемент вывода вместо броска при «Continue On Fail». */
+/** Output item instead of a throw under “Continue On Fail”. */
 export function failureJson(err: unknown, scope: ErrorScope): JsonObject {
 	if (err instanceof NodeApiError || err instanceof NodeOperationError) {
 		return { ok: false, kind: 'node', reason: 'node_error', message: err.message, hint: err.description ?? '', action: '', cid: null };

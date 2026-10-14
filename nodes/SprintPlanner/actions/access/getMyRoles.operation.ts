@@ -2,7 +2,7 @@ import type { IExecuteFunctions, INodeProperties } from 'n8n-workflow';
 import { forOp, isObj, projectField, projectKeyOf, type Obj } from '../fields';
 import type { RunContext } from '../runContext';
 
-/** Роли ответа my-roles (контракт 3.51.0, MyRoles). */
+/** Roles returned by my-roles (contract 3.51.0, MyRoles). */
 const ROLES = ['editor', 'assigner', 'validator', 'historyManager', 'settingsManager', 'planningManager', 'releaseManager', 'releaseEngineer', 'sprintLockManager'];
 
 export const description: INodeProperties[] = forOp('access', 'getMyRoles', [projectField()]);

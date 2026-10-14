@@ -1,5 +1,5 @@
-// Гейт общего слоя: копии = MCP-сервер, notes.<язык>.json = выборка реестра, в JS-слое нет того, что линтер n8n
-// (он смотрит только .ts) пропустил бы, а сканер верификации — нет.
+// Shared-layer gate: copies = MCP server, notes.<lang>.json = registry pick; the JS layer contains nothing that the n8n
+// linter (TypeScript only) would miss but the verification scanner would not.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -19,16 +19,16 @@ function violations(src) {
 	return out;
 }
 
-test('shared — копии совпадают с mcp-server/src, выборка подсказок — с реестром', { skip: !sourceAvailable() && 'источника нет (вне репозитория плагина)' }, () => {
+test('shared — copies match mcp-server/src, hint pick matches the registry', { skip: !sourceAvailable() && 'source absent (outside the plugin repository)' }, () => {
 	assert.deepEqual(diff(), []);
 });
 
-test('shared — в JS-слое нет запрещённых глобалов и внешних импортов', () => {
+test('shared — the JS layer has no forbidden globals and external imports', () => {
 	for (const f of FILES) assert.deepEqual(violations(fs.readFileSync(path.join(SHARED, f), 'utf8')), [], f);
 });
 
-test('shared — детектор способен упасть', () => {
+test('shared — the detector can actually fail', () => {
 	assert.deepEqual(violations('export const a = () => setTimeout(() => {}, 1);'), ['global setTimeout']);
 	assert.deepEqual(violations("import x from 'node:fs';\nexport default x;"), ['import node:fs']);
-	assert.deepEqual(violations('// globalThis в комментарии\nexport const b = 1;'), []);
+	assert.deepEqual(violations('// globalThis in a comment\nexport const b = 1;'), []);
 });

@@ -1,5 +1,5 @@
 // @ts-check
-/** Классы ошибок и их превращение в результат инструмента (isError:true + структура). */
+/** Error classes and their conversion into a tool result (isError:true + structure). */
 
 export class PlannerRefusal extends Error {
   /** @param {Record<string, unknown>} body */
@@ -39,7 +39,7 @@ export class NetworkError extends Error {
   }
 }
 
-/** Отказ самого сервера (guards): slot_occupied, role_not_active, project_not_allowed, read_only, sprint_not_found. */
+/** The server's own refusal (guards): slot_occupied, role_not_active, project_not_allowed, read_only, sprint_not_found. */
 export class GuardError extends Error {
   /** @param {string} code @param {Record<string, unknown>} [details] */
   constructor(code, details = {}) {
@@ -52,7 +52,7 @@ export class GuardError extends Error {
 }
 
 /**
- * Подсказка из реестра кодов: по коду целиком, затем по основе до «:» (динамические коды `code:detail`).
+ * Hint from the code registry: by the full code first, then by its base before “:” (dynamic codes `code:detail`).
  * @param {Record<string, {ru?: string, action?: string, en?: string, actionEn?: string}>} notes
  * @param {string} reason @param {string} lang
  */
@@ -94,7 +94,7 @@ export function toToolResult(err, t, notes, lang) {
     text = t('errors.unexpected', { message: err instanceof Error ? err.message : String(err) });
     structured = { ok: false, kind: 'server', reason: 'unexpected' };
   }
-  // structuredContent при isError не отдаём: клиент SDK сверяет его с outputSchema инструмента и отверг бы ответ.
-  // Машиночитаемая часть — второй строкой текста и в _meta.error.
+  // No structuredContent when isError: the SDK client checks it against the tool's outputSchema and would reject the response.
+  // The machine-readable part goes as the second text line and in _meta.error.
   return { isError: true, content: [{ type: /** @type {const} */ ('text'), text: text + '\n' + JSON.stringify(structured) }], _meta: { error: structured } };
 }

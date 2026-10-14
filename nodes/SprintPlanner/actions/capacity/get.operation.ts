@@ -13,7 +13,7 @@ export const description: INodeProperties[] = forOp('capacity', 'get', [
 	]),
 ]);
 
-/** ID спринта из параметра или спринта рабочего слота. */
+/** Sprint id from the parameter, or the working-slot sprint. */
 export async function sprintIdOrSlot(run: RunContext, key: string, given: string | undefined): Promise<string | undefined> {
 	if (given) return given;
 	const sd = await run.ops.sprintData(key);

@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-// Смоук ноды на локальном стенде n8n против тест-стенда YouTrack (#113 1а, спека §9): сборка выкладывается в
-// custom-nodes, учётные данные и воркфлоу «Webhook → Code → нода» создаются публичным API n8n, каждый шаг — вызов вебхука.
-// Использование: node tests/smoke-n8n.mjs <projectKey> <issueId>   (перед запуском — npm run build)
-// <projectKey> — проект с планером (в нём же задачи <projectKey>-1 и -2 для релиза); <issueId> — задача для «Записать поле»,
-// может быть в другом проекте: виды полей берутся из проекта самой задачи.
-// Окружение (умолчаний для проекта, задачи и имён Keychain нет намеренно — как у смоука MCP-сервера):
-//   N8N_URL            адрес n8n, по умолчанию http://localhost:5678
-//   N8N_API_KEY | N8N_KEY_SERVICE [N8N_KEY_ACCOUNT=api-key]      ключ публичного API n8n (Keychain macOS)
-//   N8N_CUSTOM_DIR     папка custom-nodes стенда на хосте (смонтирована в /home/node/.n8n/custom)
-//   N8N_CONTAINER      контейнер n8n для рестарта (новый тип учётных данных n8n видит после рестарта); пусто — без рестарта
-//   YT_URL             YouTrack для ноды изнутри контейнера, например http://host.docker.internal:<порт>
-//   YT_HOST_URL        тот же YouTrack с хоста — проверки и подготовка наборов, например http://localhost:<порт>
-//   YT_TOKEN | YT_TOKEN_SERVICE [YT_TOKEN_ACCOUNT=api-token]     токен тест-стенда
-// Скрипт ПИШЕТ данные и возвращает состояние (воркфлоу, учётные данные, значения полей и временные значения наборов);
-// предохранитель — только локальные адреса. Значения токенов не печатаются.
+// Node smoke against a local n8n stand and a YouTrack test stand (#113 1a, spec §9): the build goes to
+// custom-nodes, credentials and a "Webhook → Code → node" workflow are created via the n8n public API, each step is a webhook call.
+// Usage: node tests/smoke-n8n.mjs <projectKey> <issueId>   (run npm run build first)
+// <projectKey> — a project with the planner (it also holds the <projectKey>-1 and -2 issues for releases); <issueId> — an issue for "Set field",
+// may live in another project: field types are taken from the issue's own project.
+// Environment (there are deliberately no defaults for the project, issue and Keychain names — same as the MCP server smoke):
+//   N8N_URL            n8n URL, default http://localhost:5678
+//   N8N_API_KEY | N8N_KEY_SERVICE [N8N_KEY_ACCOUNT=api-key]      n8n public API key (macOS Keychain)
+//   N8N_CUSTOM_DIR     the stand's custom-nodes folder on the host (mounted at /home/node/.n8n/custom)
+//   N8N_CONTAINER      the n8n container to restart (n8n sees a new credential type after a restart); empty — no restart
+//   YT_URL             YouTrack for the node from inside the container, e.g. http://host.docker.internal:<port>
+//   YT_HOST_URL        the same YouTrack from the host — checks and fixture preparation, e.g. http://localhost:<port>
+//   YT_TOKEN | YT_TOKEN_SERVICE [YT_TOKEN_ACCOUNT=api-token]     test-stand token
+// The script WRITES data and returns the state (workflow, credentials, field values and temporary bundle values);
+// the safety guard allows only local addresses. Token values are never printed.
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -33,14 +33,14 @@ const n8nUrl = (process.env.N8N_URL || 'http://localhost:5678').replace(/\/+$/, 
 const ytUrl = (process.env.YT_URL || '').replace(/\/+$/, '');
 const ytHost = (process.env.YT_HOST_URL || '').replace(/\/+$/, '');
 for (const [n, u] of [['N8N_URL', n8nUrl], ['YT_URL', ytUrl], ['YT_HOST_URL', ytHost]]) {
-	if (!LOCAL.test(u)) { console.error(`smoke: ОТКАЗ — ${n} «${u}» не локальный`); process.exit(2); }
+	if (!LOCAL.test(u)) { console.error(`smoke: REFUSED — ${n} "${u}" is not local`); process.exit(2); }
 }
-if (!process.env.N8N_CUSTOM_DIR || !fs.existsSync(process.env.N8N_CUSTOM_DIR)) { console.error('smoke: нужен N8N_CUSTOM_DIR — папка custom-nodes стенда'); process.exit(2); }
-if (!fs.existsSync(path.join(PKG, 'dist/nodes/SprintPlanner/SprintPlanner.node.js'))) { console.error('smoke: нет dist/ — сначала npm run build'); process.exit(2); }
+if (!process.env.N8N_CUSTOM_DIR || !fs.existsSync(process.env.N8N_CUSTOM_DIR)) { console.error('smoke: N8N_CUSTOM_DIR required — the stand\'s custom-nodes folder'); process.exit(2); }
+if (!fs.existsSync(path.join(PKG, 'dist/nodes/SprintPlanner/SprintPlanner.node.js'))) { console.error('smoke: no dist/ — run npm run build first'); process.exit(2); }
 
 function secret(envValue, envService, account) {
 	if (process.env[envValue]) return process.env[envValue];
-	if (!process.env[envService]) { console.error(`smoke: нужен ${envValue} либо ${envService} (Keychain)`); process.exit(2); }
+	if (!process.env[envService]) { console.error(`smoke: ${envValue} or ${envService} (Keychain) required`); process.exit(2); }
 	return execFileSync('security', ['find-generic-password', '-s', process.env[envService], '-a', account, '-w'], { encoding: 'utf8' }).trim();
 }
 const n8nKey = secret('N8N_API_KEY', 'N8N_KEY_SERVICE', process.env.N8N_KEY_ACCOUNT || 'api-key');
@@ -63,7 +63,7 @@ async function http(base, headers, method, p, body) {
 const n8n = (m, p, b) => http(n8nUrl, { 'X-N8N-API-KEY': n8nKey }, m, '/api/v1' + p, b);
 const yt = (m, p, b) => http(ytHost, { Authorization: 'Bearer ' + ytToken }, m, p, b);
 
-// 1. Выкладка сборки и рестарт (тип учётных данных регистрируется только при старте n8n)
+// 1. Deploy the build and restart (a credential type registers only at n8n startup)
 const target = path.join(process.env.N8N_CUSTOM_DIR, PKG_NAME);
 fs.rmSync(target, { recursive: true, force: true });
 fs.cpSync(path.join(PKG, 'dist'), target, { recursive: true });
@@ -74,14 +74,14 @@ if (process.env.N8N_CONTAINER) {
 		await new Promise((r) => setTimeout(r, 2000));
 	}
 }
-check('тип учётных данных виден публичному API', (await n8n('GET', '/credentials/schema/' + BRAND.credentialName)).status === 200);
+check('credential type visible to the public API', (await n8n('GET', '/credentials/schema/' + BRAND.credentialName)).status === 200);
 
 const cred = await n8n('POST', '/credentials', { name: 'smoke-113-1a', type: BRAND.credentialName, data: { url: ytUrl, token: ytToken, appId: BRAND.appId } });
-if (!check('учётные данные созданы', cred.status === 200 && cred.data?.id, cred.data)) process.exit(1);
+if (!check('credentials created', cred.status === 200 && cred.data?.id, cred.data)) process.exit(1);
 const NODE_TYPE = 'CUSTOM.sprintPlanner';
 const PR = { __rl: true, mode: 'key', value: projectKey };
 
-/** Один запуск ноды: воркфлоу создаётся, активируется, вызывается вебхуком и удаляется. */
+/** One node run: a workflow is created, activated, called via webhook and deleted. */
 async function node(parameters, { items, continueOnFail = false, credId = cred.data.id } = {}) {
 	const hook = 'smoke-113-1a-' + randomUUID();
 	const wf = await n8n('POST', '/workflows', {
@@ -122,80 +122,80 @@ const refused = async (name, parameters, reason, opts = {}) => {
 const P = (resource, operation, extra = {}) => ({ resource, operation, project: PR, ...extra });
 
 try {
-	// 2. Чтения
-	const [ov] = await ok('Проект → Обзор', P('project', 'getOverview'));
-	check('обзор: планер ≥ 3.49.1, настроен', ov?.contractOk === true && ov?.configured === true, ov);
-	const [sp] = await ok('Спринт → Получить', P('sprint', 'get'));
-	await ok('История → Список', P('history', 'getMany', { limit: 3 }));
-	await ok('Ёмкость → Получить', P('capacity', 'get'));
-	await ok('Календарь → Получить', P('calendar', 'get'));
-	await ok('Напоминание → Список', P('reminder', 'getMany', { options: { includeJournal: true } }));
-	const [roles] = await ok('Права → Мои роли', P('access', 'getMyRoles'));
-	check('мои роли: 9 ключей', roles && Object.keys(roles.roles || {}).length >= 9, roles);
-	const projects = await ok('Проект → Список', { resource: 'project', operation: 'getMany', search: projectKey, returnAll: true });
-	check('список проектов: проект с планером', projects.some((p) => p.key === projectKey && p.planner === true), projects);
-	const [st] = await ok('Проект → Статус планера', P('project', 'getPlannerStatus'));
-	check('статус: подключён, версия', st?.attached === true && typeof st?.version === 'string', st);
-	const found = await ok('Задача YouTrack → Найти', { resource: 'issue', operation: 'search', query: 'sort by: created', limit: 3, options: { project: projectKey } });
-	check('поиск: задачи проекта с полями', found.length > 0 && found.every((x) => x.project === projectKey && x.fields), found);
+	// 2. Reads
+	const [ov] = await ok('Project → Overview', P('project', 'getOverview'));
+	check('overview: planner ≥ 3.49.1, configured', ov?.contractOk === true && ov?.configured === true, ov);
+	const [sp] = await ok('Sprint → Get', P('sprint', 'get'));
+	await ok('History → List', P('history', 'getMany', { limit: 3 }));
+	await ok('Capacity → Get', P('capacity', 'get'));
+	await ok('Calendar → Get', P('calendar', 'get'));
+	await ok('Reminder → List', P('reminder', 'getMany', { options: { includeJournal: true } }));
+	const [roles] = await ok('Access → My Roles', P('access', 'getMyRoles'));
+	check('my roles: 9 keys', roles && Object.keys(roles.roles || {}).length >= 9, roles);
+	const projects = await ok('Project → List', { resource: 'project', operation: 'getMany', search: projectKey, returnAll: true });
+	check('project list: the project with the planner', projects.some((p) => p.key === projectKey && p.planner === true), projects);
+	const [st] = await ok('Project → Planner Status', P('project', 'getPlannerStatus'));
+	check('status: attached, version', st?.attached === true && typeof st?.version === 'string', st);
+	const found = await ok('YouTrack Issue → Search', { resource: 'issue', operation: 'search', query: 'sort by: created', limit: 3, options: { project: projectKey } });
+	check('search: project issues with fields', found.length > 0 && found.every((x) => x.project === projectKey && x.fields), found);
 
-	// 3. Отказы
+	// 3. Refusals
 	const badCred = await n8n('POST', '/credentials', { name: 'smoke-113-1a-bad', type: BRAND.credentialName, data: { url: ytUrl, token: 'perm-bad.token', appId: BRAND.appId } });
 	try {
-		await refused('Проект → Обзор (плохой токен)', P('project', 'getOverview'), 'http_401', { credId: badCred.data?.id });
+		await refused('Project → Overview (bad token)', P('project', 'getOverview'), 'http_401', { credId: badCred.data?.id });
 	} finally {
 		if (badCred.data?.id) await n8n('DELETE', '/credentials/' + badCred.data.id);
 	}
-	await refused('Спринт → Получить (несуществующий проект)', { resource: 'sprint', operation: 'get', project: { __rl: true, mode: 'key', value: 'NoSuchProject113' } }, 'project_unavailable');
+	await refused('Sprint → Get (unknown project)', { resource: 'sprint', operation: 'get', project: { __rl: true, mode: 'key', value: 'NoSuchProject113' } }, 'project_unavailable');
 	if (sp?.sprint && sp.sprint.status !== 'FINISHED') {
-		await refused('Спринт → Залить черновик в занятый слот', P('sprint', 'uploadDraft', { sprintId: 'smoke-113-never', name: 'smoke', dateStart: '2031-01-01T00:00:00.000Z', dateEnd: '2031-01-14T00:00:00.000Z', items: '{"analysis":[]}' }), 'slot_occupied');
-	} else console.log('SKIP  slot_occupied — слот пуст либо спринт завершён');
+		await refused('Sprint → Upload draft into an occupied slot', P('sprint', 'uploadDraft', { sprintId: 'smoke-113-never', name: 'smoke', dateStart: '2031-01-01T00:00:00.000Z', dateEnd: '2031-01-14T00:00:00.000Z', items: '{"analysis":[]}' }), 'slot_occupied');
+	} else console.log('SKIP  slot_occupied — the slot is empty or the sprint is finished');
 
-	// 4. Круг задачи спринта: ревизия растёт на каждой записи; два элемента за запуск — ревизия переносится
+	// 4. Sprint item round: the revision grows on every write; two items per run — the revision carries over
 	const SMOKE = projectKey + '-999113';
 	if (sp?.sprint?.sprintId) {
 		const rev = sp.sprint.rev;
-		const [a] = await ok('Задача спринта → Добавить', P('sprintItem', 'createOrUpdate', { roleKey: 'analysis', issueId: SMOKE, additionalFields: { title: 'n8n-smoke', inclusionStatus: 'INC_PLANNED', estimate: 60 } }));
-		check('добавить: rev +1', a?.rev === rev + 1, a);
-		const pair = await ok('два элемента: изменить оценку и убрать', P('sprintItem', 'createOrUpdate', { roleKey: 'analysis', issueId: SMOKE, additionalFields: { estimate: '={{ $json.estimate }}' } }), { items: [{ estimate: 120 }, { estimate: 180 }] });
-		check('перенос ревизии: rev +1, +1 без повтора', pair.length === 2 && pair[0].rev === rev + 2 && pair[1].rev === rev + 3 && !pair[0].retried && !pair[1].retried, pair);
-		const split = await ok('Спринт → Получить (элементы)', P('sprint', 'get', { options: { splitIntoItems: true, roleKey: 'analysis' } }));
-		check('оценка 180 на месте', split.some((x) => x.issueId === SMOKE && x.estimate === 180), split.filter((x) => x.issueId === SMOKE));
-		await refused('Задача спринта → устаревшая ревизия', P('sprintItem', 'createOrUpdate', { roleKey: 'analysis', issueId: SMOKE, options: { revision: rev } }), 'rev_conflict');
-		const [rm] = await ok('Задача спринта → Убрать', P('sprintItem', 'remove', { roleKey: 'analysis', issueId: SMOKE }));
-		check('убрать: rev +1', rm?.rev === rev + 4, rm);
-		const [hd] = await ok('Спринт → Изменить шапку (то же название)', P('sprint', 'update', { updateFields: { name: sp.sprint.name } }));
-		check('шапка: rev +1', hd?.rev === rev + 5, hd);
-	} else console.log('SKIP  операции спринта — слот пуст');
+		const [a] = await ok('Sprint Item → Add', P('sprintItem', 'createOrUpdate', { roleKey: 'analysis', issueId: SMOKE, additionalFields: { title: 'n8n-smoke', inclusionStatus: 'INC_PLANNED', estimate: 60 } }));
+		check('add: rev +1', a?.rev === rev + 1, a);
+		const pair = await ok('two items: change the estimate and remove', P('sprintItem', 'createOrUpdate', { roleKey: 'analysis', issueId: SMOKE, additionalFields: { estimate: '={{ $json.estimate }}' } }), { items: [{ estimate: 120 }, { estimate: 180 }] });
+		check('revision carry-over: rev +1, +1 without retry', pair.length === 2 && pair[0].rev === rev + 2 && pair[1].rev === rev + 3 && !pair[0].retried && !pair[1].retried, pair);
+		const split = await ok('Sprint → Get (items)', P('sprint', 'get', { options: { splitIntoItems: true, roleKey: 'analysis' } }));
+		check('estimate 180 in place', split.some((x) => x.issueId === SMOKE && x.estimate === 180), split.filter((x) => x.issueId === SMOKE));
+		await refused('Sprint Item → stale revision', P('sprintItem', 'createOrUpdate', { roleKey: 'analysis', issueId: SMOKE, options: { revision: rev } }), 'rev_conflict');
+		const [rm] = await ok('Sprint Item → Remove', P('sprintItem', 'remove', { roleKey: 'analysis', issueId: SMOKE }));
+		check('remove: rev +1', rm?.rev === rev + 4, rm);
+		const [hd] = await ok('Sprint → Update header (same name)', P('sprint', 'update', { updateFields: { name: sp.sprint.name } }));
+		check('header: rev +1', hd?.rev === rev + 5, hd);
+	} else console.log('SKIP  sprint operations — the slot is empty');
 
-	// 5. Отсутствие туда-обратно (календарные даты)
-	const [ua] = await ok('Отсутствие → Добавить', P('absence', 'createOrUpdate', { login: 'n8n-smoke', from: '2031-01-13T00:00:00.000+03:00', to: '2031-01-14T00:00:00.000+03:00', type: 'vacation' }));
-	const mine = await ok('Отсутствие → Список (логин)', P('absence', 'getMany', { options: { login: 'n8n-smoke' } }));
-	check('отсутствие записано датами 13–14 января', mine.length === 1 && mine[0].from === '2031-01-13' && mine[0].to === '2031-01-14', mine);
-	const [da] = await ok('Отсутствие → Удалить', P('absence', 'delete', { login: 'n8n-smoke', from: '2031-01-13', to: '2031-01-14' }));
-	check('отсутствие удалено: rev +1', da?.deleted === true && da.rev === ua?.rev + 1, da);
+	// 5. Absence round-trip (calendar dates)
+	const [ua] = await ok('Absence → Add', P('absence', 'createOrUpdate', { login: 'n8n-smoke', from: '2031-01-13T00:00:00.000+03:00', to: '2031-01-14T00:00:00.000+03:00', type: 'vacation' }));
+	const mine = await ok('Absence → List (login)', P('absence', 'getMany', { options: { login: 'n8n-smoke' } }));
+	check('absence written with dates Jan 13–14', mine.length === 1 && mine[0].from === '2031-01-13' && mine[0].to === '2031-01-14', mine);
+	const [da] = await ok('Absence → Delete', P('absence', 'delete', { login: 'n8n-smoke', from: '2031-01-13', to: '2031-01-14' }));
+	check('absence deleted: rev +1', da?.deleted === true && da.rev === ua?.rev + 1, da);
 
-	// 6. Релиз: создать → состав → статус → удалить
+	// 6. Release: create → issues → status → delete
 	const RID = 'n8n-smoke-113';
 	const RL = { __rl: true, mode: 'id', value: RID };
-	const [cr] = await ok('Релиз → Создать', P('release', 'createOrUpdate', { releaseId: RID, additionalFields: { name: 'n8n-smoke', kind: 'release', source: 'internal', status: 'planned', plannedDate: '2031-01-01T00:00:00.000Z' } }));
-	const [ui] = await ok('Релиз → Добавить и убрать задачи', P('release', 'updateIssues', { release: RL, additionalFields: { issuesToAdd: `${projectKey}-1, ${projectKey}-2`, issuesToRemove: `${projectKey}-1` } }));
-	check('состав: +2 −1, rev +2', ui?.added?.length === 2 && ui?.removed?.length === 1 && ui.rev === cr?.rev + 2, ui);
-	await ok('Релиз → Сменить статус prep', P('release', 'setStatus', { release: RL, status: 'prep' }));
-	const rels = await ok('Релиз → Список', P('release', 'getMany', { returnAll: true, options: { status: 'prep' } }));
+	const [cr] = await ok('Release → Create', P('release', 'createOrUpdate', { releaseId: RID, additionalFields: { name: 'n8n-smoke', kind: 'release', source: 'internal', status: 'planned', plannedDate: '2031-01-01T00:00:00.000Z' } }));
+	const [ui] = await ok('Release → Add and remove issues', P('release', 'updateIssues', { release: RL, additionalFields: { issuesToAdd: `${projectKey}-1, ${projectKey}-2`, issuesToRemove: `${projectKey}-1` } }));
+	check('issues: +2 −1, rev +2', ui?.added?.length === 2 && ui?.removed?.length === 1 && ui.rev === cr?.rev + 2, ui);
+	await ok('Release → Set status prep', P('release', 'setStatus', { release: RL, status: 'prep' }));
+	const rels = await ok('Release → List', P('release', 'getMany', { returnAll: true, options: { status: 'prep' } }));
 	const r = rels.find((x) => x.id === RID);
-	check('релиз: prep, состав [-2]', !!r && JSON.stringify(r.issues) === JSON.stringify([projectKey + '-2']), r);
-	const [dr] = await ok('Релиз → Удалить', P('release', 'delete', { release: RL }));
-	check('релиз удалён', dr?.deleted === true && dr.id === RID, dr);
-	await refused('Релиз → Удалить повторно', P('release', 'delete', { release: RL }), 'release_not_found');
+	check('release: prep, issues [-2]', !!r && JSON.stringify(r.issues) === JSON.stringify([projectKey + '-2']), r);
+	const [dr] = await ok('Release → Delete', P('release', 'delete', { release: RL }));
+	check('release deleted', dr?.deleted === true && dr.id === RID, dr);
+	await refused('Release → Delete again', P('release', 'delete', { release: RL }), 'release_not_found');
 
-	// 7. Записать поле (штатно) — по одному полю вида, запись → проверка → возврат (спека §6)
+	// 7. Set field (stock) — one per field type, write → check → restore (spec §6)
 	await fieldRound();
-	await refused('Записать поле через планер (поле не из настроек)', P('issue', 'setFieldViaPlanner', { issueId, fieldName: 'NoSuchField113', fieldType: 'enum', value: 'x' }), ['field_not_whitelisted', 'field_not_found', 'plugin_not_configured', 'assigner_rights_required']);
+	await refused('Set field through the planner (field not in settings)', P('issue', 'setFieldViaPlanner', { issueId, fieldName: 'NoSuchField113', fieldType: 'enum', value: 'x' }), ['field_not_whitelisted', 'field_not_found', 'plugin_not_configured', 'assigner_rights_required']);
 } finally {
 	await n8n('DELETE', '/credentials/' + cred.data.id);
 	const left = (await n8n('GET', '/workflows?limit=250')).data?.data?.filter((w) => w.name.startsWith('smoke-113-1a')) ?? [];
-	check('стенд n8n чист: воркфлоу смоука удалены', left.length === 0, left.map((w) => w.id));
+	check('n8n stand clean: smoke workflows deleted', left.length === 0, left.map((w) => w.id));
 }
 
 async function fieldRound() {
@@ -205,15 +205,15 @@ async function fieldRound() {
 	const setViaNode = (f, value) => node(P('issue', 'setField', { issueId, field: `${f.id}|${f.field.fieldType.id}`, ...(value === null ? { clearField: true } : { value }) }));
 	const plain = (v) => (v && typeof v === 'object' ? v.login ?? v.name ?? v.minutes ?? v.text ?? null : v);
 
-	/** Запись значения и возврат исходного; exp — ожидаемое значение после записи (по умолчанию то же). */
+	/** Write a value and restore the original; exp — the expected value after the write (defaults to the same). */
 	async function round(label, f, value, exp = value) {
-		if (!f) return console.log('SKIP  поле вида ' + label + ' — в проекте нет');
+		if (!f) return console.log('SKIP  field of type ' + label + ' — none in the project');
 		const before = plain(await current(f.id));
 		const w = await setViaNode(f, value);
-		check(`Записать поле: ${label} «${f.field.name}»`, w.status === 200 && Array.isArray(w.data), w.data);
-		check(`  значение записано (${label})`, plain(await current(f.id)) === exp, await current(f.id));
+		check(`Set field: ${label} "${f.field.name}"`, w.status === 200 && Array.isArray(w.data), w.data);
+		check(`  value written (${label})`, plain(await current(f.id)) === exp, await current(f.id));
 		const back = await setViaNode(f, before === null ? null : String(before));
-		check(`  возвращено (${label})`, back.status === 200 && plain(await current(f.id)) === before, await current(f.id));
+		check(`  restored (${label})`, back.status === 200 && plain(await current(f.id)) === before, await current(f.id));
 	}
 
 	const enumF = pick('enum[1]', (f) => (f.bundle?.values?.length ?? 0) >= 2 && !f.canBeEmpty);
@@ -223,7 +223,7 @@ async function fieldRound() {
 	if (stateF) {
 		const s = plain(await current(stateF.id));
 		const w = await setViaNode(stateF, s);
-		check(`Записать поле: state «${stateF.field.name}» тем же значением`, w.status === 200 && plain(await current(stateF.id)) === s, w.data);
+		check(`Set field: state "${stateF.field.name}" with the same value`, w.status === 200 && plain(await current(stateF.id)) === s, w.data);
 	}
 	await round('version[1]', pick('version[1]', (f) => f.bundle?.values?.length), pick('version[1]', (f) => f.bundle?.values?.length)?.bundle.values[0].name);
 	const userF = pick('user[1]', (f) => f.canBeEmpty && (f.bundle?.aggregatedUsers?.length ?? 0) >= 2);
@@ -235,23 +235,23 @@ async function fieldRound() {
 	await round('integer', pick('integer'), '42', 42);
 	await round('date', pick('date'), '2031-01-13T00:00:00.000+03:00', Date.UTC(2031, 0, 13, 12));
 	const multi = pick('version[*]');
-	if (multi) await refused(`Записать поле: многозначное «${multi.field.name}»`, P('issue', 'setField', { issueId, field: `${multi.id}|version[*]`, value: 'x' }), 'multi_value_field');
+	if (multi) await refused(`Set field: multi-value "${multi.field.name}"`, P('issue', 'setField', { issueId, field: `${multi.id}|version[*]`, value: 'x' }), 'multi_value_field');
 
-	// build и owned: во временное значение набора и обратно (набор стенда может быть пуст)
+	// build and owned: to a temporary bundle value and back (the stand bundle may be empty)
 	for (const [type, kind] of [['build[1]', 'build'], ['ownedField[1]', 'ownedField']]) {
 		const f = pick(type);
-		if (!f) { console.log('SKIP  поле вида ' + type + ' — в проекте нет'); continue; }
+		if (!f) { console.log('SKIP  field of type ' + type + ' — none in the project'); continue; }
 		const name = 'n8n-smoke-113';
 		const added = await yt('POST', `/api/admin/customFieldSettings/bundles/${kind}/${f.bundle.id}/values?fields=id,name`, { name });
-		if (!check(`набор ${type}: временное значение добавлено`, added.status === 200 && added.data?.id, added.data)) continue;
+		if (!check(`bundle ${type}: temporary value added`, added.status === 200 && added.data?.id, added.data)) continue;
 		try {
 			await round(type, f, name);
 		} finally {
 			const del = await yt('DELETE', `/api/admin/customFieldSettings/bundles/${kind}/${f.bundle.id}/values/${added.data.id}`);
-			check(`набор ${type}: временное значение удалено`, del.status === 200, del.data);
+			check(`bundle ${type}: temporary value removed`, del.status === 200, del.data);
 		}
 	}
 }
 
-console.log('\nИТОГ: ' + (failed.length ? 'FAIL (' + failed.length + '): ' + failed.join('; ') : 'PASS'));
+console.log('\nRESULT: ' + (failed.length ? 'FAIL (' + failed.length + '): ' + failed.join('; ') : 'PASS'));
 process.exit(failed.length ? 1 : 0);

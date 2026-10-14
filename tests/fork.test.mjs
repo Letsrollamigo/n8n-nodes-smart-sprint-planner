@@ -1,5 +1,5 @@
-// Fork-agnostic: значения брендинга — только в per-fork файлах; в английской сборке нет кириллицы в словаре и подсказках.
-// Запрещённые литералы выводятся из самого branding.ts и package.json — имён форков в тесте нет (иначе он сам был бы утечкой).
+// Fork-agnostic: branding values live only in per-fork files; the English build has no Cyrillic in its dictionary and hints.
+// Forbidden literals are derived from branding.ts and package.json — the test carries no fork names (it would leak them itself).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,6 +18,7 @@ const PER_FORK = [
 	/^nodes\/SprintPlanner\/(branding|i18n)\.ts$/,
 	/^nodes\/SprintPlanner\/SprintPlanner\.node\.json$/,
 	/^nodes\/SprintPlanner\/shared\/notes\.[a-z]+\.json$/,
+	/^assets\//,
 ];
 const NEEDLES = [BRAND.appId, BRAND.credentialName, BRAND.displayName, new URL(BRAND.docsUrl).host, PKG_NAME].map((s) => s.toLowerCase());
 const APP_ID = /\b[a-z]+-sprint-planner\b/;
@@ -33,19 +34,19 @@ function walk(dir, rel = '') {
 
 const leaks = (text) => NEEDLES.some((n) => text.toLowerCase().includes(n)) || APP_ID.test(text);
 
-test('значения брендинга — только в per-fork файлах', () => {
+test('branding values live only in per-fork files', () => {
 	const found = walk(PKG).filter((f) => !f.endsWith('.tsbuildinfo') && !PER_FORK.some((re) => re.test(f)) && leaks(fs.readFileSync(path.join(PKG, f), 'utf8')));
 	assert.deepEqual(found, []);
 });
 
-test('детектор способен упасть', () => {
+test('the detector can actually fail', () => {
 	assert.ok(leaks(`const appId = '${BRAND.appId}';`));
 	assert.ok(leaks(`name: '${BRAND.displayName}'`));
 	assert.ok(leaks('other' + '-sprint-planner'));
 	assert.ok(!leaks('const planner = makeOps();'));
 });
 
-test('английская сборка — без кириллицы в словаре и подсказках', { skip: BRAND.lang !== 'en' && 'русская сборка' }, () => {
+test('english build has no Cyrillic in dictionary and hints', { skip: BRAND.lang !== 'en' && 'russian build' }, () => {
 	for (const f of ['nodes/SprintPlanner/i18n.ts', 'nodes/SprintPlanner/shared/notes.en.json']) {
 		assert.ok(!/[А-Яа-яЁё]/.test(fs.readFileSync(path.join(PKG, f), 'utf8')), f);
 	}

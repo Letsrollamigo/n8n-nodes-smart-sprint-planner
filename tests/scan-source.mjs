@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Ручной прогон проверки исходников сканером n8n (та же, что при верификации пакета) — перед подачей на верификацию.
-// Сканер в зависимости пакета не входит. Подготовка во временной папке:
-//   npm i --prefix <папка> --ignore-scripts @n8n/scan-community-package typescript@5.9.2 n8n-workflow
-// (typescript закрепляется: с 7.x падает @typescript-eslint/parser). Запуск:
-//   SCANNER_DIR=<папка> node tests/scan-source.mjs
+// Manual run of the n8n source scanner (the same one used for package verification) — before submitting for verification.
+// The scanner is not a package dependency. Prepare it in a temp folder:
+//   npm i --prefix <folder> --ignore-scripts @n8n/scan-community-package typescript@5.9.2 n8n-workflow
+// (typescript is pinned: 7.x breaks @typescript-eslint/parser). Run:
+//   SCANNER_DIR=<folder> node tests/scan-source.mjs
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 

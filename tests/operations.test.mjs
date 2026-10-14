@@ -1,5 +1,5 @@
-// Инварианты формы: 26 операций = 26 файлов, у каждой описание и обработчик, у записи с ревизией — «Ревизия»,
-// у чтений — «Вывод»; свойства операции показываются только для своих ресурса и операции.
+// Form invariants: 26 operations = 26 files, each has a description and a handler; writes with revisions have "Revision",
+// reads have "Output"; an operation's properties show only for its own resource and operation.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -22,17 +22,17 @@ const files = fs.readdirSync(ACTIONS, { recursive: true }).filter((f) => String(
 const ops = Object.entries(RESOURCES).flatMap(([r, res]) => Object.entries(res.operations).map(([o, op]) => ({ key: `${r}.${o}`, r, o, op })));
 const disabled = Object.entries(FLAGGED).filter(([flag]) => !BRAND.features[flag]).map(([, key]) => key);
 
-test('26 файлов операций; в роутере — все, кроме выключенных флагами сборки', () => {
+test('26 operation files; the router has all but those disabled by build flags', () => {
 	assert.equal(files.length, 26);
 	assert.equal(ops.length, 26 - disabled.length);
 	for (const f of files) {
 		const [r, name] = String(f).split(path.sep);
 		const o = name.replace('.operation.ts', '');
-		if (!disabled.includes(`${r}.${o}`)) assert.ok(ops.find((x) => x.r === r && x.o === o), `${r}.${o} нет в роутере`);
+		if (!disabled.includes(`${r}.${o}`)) assert.ok(ops.find((x) => x.r === r && x.o === o), `${r}.${o} missing from the router`);
 	}
 });
 
-test('у каждой операции описание и обработчик; свойства видны только своей операции', () => {
+test('every operation has a description and a handler; properties show only for their own operation', () => {
 	for (const { key, r, o, op } of ops) {
 		assert.equal(typeof op.execute, 'function', key);
 		assert.ok(Array.isArray(op.description) && op.description.length, key);
@@ -46,14 +46,14 @@ test('у каждой операции описание и обработчик;
 
 const optionNames = (op) => (op.description.find((p) => p.name === 'options')?.options ?? []).map((x) => x.name);
 
-test('запись с ревизией — параметр «Ревизия»; чтения — «Вывод»; прочие без них', () => {
+test('revision writes have "Revision"; reads have "Output"; others have neither', () => {
 	for (const { key, op } of ops) {
 		assert.equal(optionNames(op).includes('revision'), WITH_REVISION.includes(key), key + ' revision');
 		assert.equal(optionNames(op).includes('output'), WITH_OUTPUT.includes(key), key + ' output');
 	}
 });
 
-test('описание ноды: ресурсы и операции с подписями, action и описанием; subtitle и usableAsTool', () => {
+test('node description: resources and operations with labels, action and description; subtitle and usableAsTool', () => {
 	const d = new SprintPlanner().description;
 	assert.ok(d.subtitle);
 	assert.equal(d.usableAsTool, true);

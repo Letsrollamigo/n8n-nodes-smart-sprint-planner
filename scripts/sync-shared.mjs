@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Общий слой ноды: nodes/SprintPlanner/shared/ ← ../mcp-server/src/ (байт-копии) и notes.<язык>.json —
-// выборка полей языка сборки из ../error-codes.notes.json. Источник правды — MCP-сервер и реестр кодов.
-// `--check` — сверка (гейт tests/shared.test.mjs зовёт ту же функцию).
+// Node shared layer: nodes/SprintPlanner/shared/ ← ../mcp-server/src/ (byte copies) and notes.<lang>.json —
+// a pick of the build-language fields from ../error-codes.notes.json. Source of truth — the MCP server and the code registry.
+// `--check` — verification (the gate tests/shared.test.mjs calls the same function).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +14,7 @@ export const SHARED = path.join(PKG, 'nodes', 'SprintPlanner', 'shared');
 export const FILES = ['constants.js', 'errors.js', 'ops.js', 'shape.js'];
 const LANG_FIELDS = { ru: ['ru', 'action'], en: ['en', 'actionEn'] };
 
-/** Язык сборки — из branding.ts (единственный per-fork источник). */
+/** Build language — from branding.ts (the only per-fork source). */
 export function lang() {
   const m = /\blang:\s*'(ru|en)'/.exec(fs.readFileSync(path.join(PKG, 'nodes', 'SprintPlanner', 'branding.ts'), 'utf8'));
   if (!m) throw new Error('branding.ts: lang not found');
@@ -59,7 +59,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!sourceAvailable()) { console.error('sync-shared: ../mcp-server/src not found — run inside the plugin repository'); process.exit(2); }
   if (process.argv.includes('--check')) {
     const d = diff();
-    if (d.length) { console.error('sync-shared: ' + d.join('; ') + ' — run npm run sync-shared'); process.exit(1); }
+    if (d.length) { console.error('sync-shared: ' + d.join('; ') + ' — run `npm run sync-shared`'); process.exit(1); }
     console.log('sync-shared: copies match');
   } else { sync(); console.log('sync-shared: copied ' + FILES.join(', ') + ' and notes.' + lang() + '.json'); }
 }

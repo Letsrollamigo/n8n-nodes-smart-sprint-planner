@@ -39,7 +39,7 @@ export const description: INodeProperties[] = forOp('sprint', 'uploadDraft', [
 const ITEM_KEYS = new Set(['issueId', 'title', 'inclusionStatus', 'estimate', 'fact', 'alloc', 'excludeReason', 'assignee', 'externalTicketId']);
 const itemsLabel = () => T.fields.items.displayName;
 
-/** Одна задача состава: те же ограничения, что у MCP-схемы ItemIn; ошибка — с ID задачи. */
+/** One roster item: same constraints as the MCP ItemIn schema; errors carry the issue id. */
 function readItem(v: unknown, n: number): Obj {
 	if (!isObj(v)) throw bad(itemsLabel(), fmt(T.problems.item, { issueId: '#' + (n + 1), problem: T.problems.itemShape }));
 	const issueId = String(v.issueId ?? '#' + (n + 1));
@@ -66,7 +66,7 @@ function readItem(v: unknown, n: number): Obj {
 	}
 }
 
-/** Состав по ролям: `{ "<роль>": [ { issueId, … } ] }`. */
+/** Roster by role: `{ "<role>": [ { issueId, … } ] }`. */
 export function readItems(value: unknown): Record<string, Obj[]> {
 	const j = jsonOf(value, 'items');
 	if (!isObj(j)) throw bad(itemsLabel(), T.problems.itemsShape);

@@ -1,4 +1,4 @@
-// Подменённый IExecuteFunctions/ILoadOptionsFunctions и маршрутизатор ответов: тесты гоняют собранный dist/ без сети.
+// Mock IExecuteFunctions/ILoadOptionsFunctions and a response router: tests drive the built dist/ with no network.
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -6,9 +6,9 @@ export const dist = (p) => require('../dist/nodes/SprintPlanner/' + p);
 export const { SprintPlanner } = dist('SprintPlanner.node.js');
 
 /**
- * Ответы по ключу `<METHOD> <путь контракта>[?<action>]` либо `<METHOD> <путь YouTrack>`. Значение — ответ, массив
- * ответов (расходуются по очереди, последний повторяется), функция от запроса или Error (сбой сети).
- * Ответ без statusCode — тело успеха контракта ({success:true, ...}).
+ * Responses keyed by `<METHOD> <contract path>[?<action>]` or `<METHOD> <YouTrack path>`. The value is a response, an array
+ * of responses (consumed in order, the last one repeats), a function of the request, or an Error (network failure).
+ * A response without statusCode is a contract success body ({success:true, ...}).
  */
 export function responder(routes) {
 	return (opts) => {
@@ -25,7 +25,7 @@ export function responder(routes) {
 	};
 }
 
-/** Контекст выполнения: params — параметры по элементам; calls — журнал запросов. */
+/** Execution context: params — per-item parameters; calls — the request log. */
 export function ctx({ params = [{}], routes = {}, continueOnFail = false, creds } = {}) {
 	const calls = [];
 	const reply = responder(routes);
@@ -57,7 +57,7 @@ export function ctx({ params = [{}], routes = {}, continueOnFail = false, creds 
 	return { fn, calls };
 }
 
-/** Запуск ноды: результат — json элементов вывода (и pairedItem рядом). */
+/** Node run: result — json of the output items (with pairedItem alongside). */
 export async function run(params, routes, extra = {}) {
 	const c = ctx({ params: Array.isArray(params) ? params : [params], routes, ...extra });
 	const [out] = await new SprintPlanner().execute.call(c.fn);
@@ -66,5 +66,5 @@ export async function run(params, routes, extra = {}) {
 
 export const project = (key = 'DEMO') => ({ __rl: true, mode: 'key', value: key });
 export const refusal = (reason, extra = {}) => ({ statusCode: 200, body: { success: false, reason, error: reason, cid: 'cid-1', ...extra } });
-/** Путь контракта запроса из журнала. */
+/** Contract path of a logged request. */
 export const pathOf = (c) => (/\/backend-global\/(.+)$/.exec(new URL(c.url).pathname) || [])[1] + (c.qs?.action ? '?' + c.qs.action : '');
